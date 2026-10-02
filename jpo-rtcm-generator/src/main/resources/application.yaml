@@ -1,3 +1,25 @@
 spring:
   application:
     name: rtcm-generator
+
+#General Properties
+#==================
+groupId: ^project.groupId^
+artifactId: ^project.artifactId^
+version: ^project.version^
+server.port: 8085
+
+# Kafka properties
+spring.kafka.bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+logging:
+  level:
+    root: INFO
+    org.springframework.kafka: info
+    org.springframework.web: WARN
+    guru.springframework.controllers: WARN
+    org.springframework.integration.mqtt: INFO
+    us.dot.its.jpo.ode.mec.deposit: ${LOGGING_LEVEL:INFO}
+    org.apache.kafka: WARN
+
+# Amount of time to wait to try and increase batching
+kafka.linger_ms: 50
