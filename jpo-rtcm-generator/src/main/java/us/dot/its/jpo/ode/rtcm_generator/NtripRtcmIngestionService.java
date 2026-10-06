@@ -241,7 +241,7 @@ public class NtripRtcmIngestionService {
 
     private void sendGga(OutputStream outputStream) throws IOException {
         String ggaSentence =
-                makeGga(ntripProperties.getFakeLat(), ntripProperties.getFakeLon(), ntripProperties.getFakeAltM());
+                makeGga(ntripProperties.getLatitude(), ntripProperties.getLongitude(), ntripProperties.getElevation());
 
         System.out.println("Sending GGA sentence: " + ggaSentence);
 
@@ -260,7 +260,8 @@ public class NtripRtcmIngestionService {
             try {
                 int read = session.inputStream().read(buffer);
                 if (read == -1) {
-                    throw new IOException("Caster closed the stream");
+                    throw new IOException(
+                            "Caster closed the stream. Possible causes include:\r\n network issues\r\ncaster shutdown\r\nincorrect mountpoint configuration\r\ninvalid credentials\r\nno gga stream provided\r\ngga stream is in an invalid location");
                 }
 
                 byte[] merged = new byte[pending.length + read];
@@ -283,6 +284,9 @@ public class NtripRtcmIngestionService {
 
     private void publishFrame(RtcmFrameParser.RtcmFrame frame) {
         String payloadHex = HexFormat.of().withUpperCase().formatHex(frame.frameBytes());
+        RtcmBuilder.buildAsn1DataFromPayload(ntripProperties.getHost(), ntripProperties.getPort(),
+                ntripProperties.getMountpoint(), payloadHex, ntripProperties.latitude, ntripProperties.getLongitude(),
+                ntripProperties.getElevation());
         String message = toJson(frame, payloadHex);
         String key = frame.messageType() >= 0 ? Integer.toString(frame.messageType()) : "unknown";
         kafkaTemplate.send(ntripProperties.getOutputTopic(), key, message);

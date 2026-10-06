@@ -17,9 +17,9 @@ public class NtripProperties {
     private int socketTimeoutSec = 15;
     private int reconnectDelaySec = 5;
     private int ggaIntervalSec = 20;
-    private double fakeLat = 38.9542;
-    private double fakeLon = -77.1492;
-    private double fakeAltM = 30.0;
+    private double latitude = 38.9542;
+    private double longitude = -77.1492;
+    private double elevation = 30.0;
     private String outputTopic = "topic.RGRtcmJson";
     private String userAgent = "NTRIP-RTCM-Generator/1.0";
     private boolean preferNtripV2 = true;
@@ -96,28 +96,28 @@ public class NtripProperties {
         this.ggaIntervalSec = ggaIntervalSec;
     }
 
-    public double getFakeLat() {
-        return fakeLat;
+    public double getLatitude() {
+        return latitude;
     }
 
-    public void setFakeLat(double fakeLat) {
-        this.fakeLat = fakeLat;
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
     }
 
-    public double getFakeLon() {
-        return fakeLon;
+    public double getLongitude() {
+        return longitude;
     }
 
-    public void setFakeLon(double fakeLon) {
-        this.fakeLon = fakeLon;
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
     }
 
-    public double getFakeAltM() {
-        return fakeAltM;
+    public double getElevation() {
+        return elevation;
     }
 
-    public void setFakeAltM(double fakeAltM) {
-        this.fakeAltM = fakeAltM;
+    public void setElevation(double elevation) {
+        this.elevation = elevation;
     }
 
     public String getOutputTopic() {
