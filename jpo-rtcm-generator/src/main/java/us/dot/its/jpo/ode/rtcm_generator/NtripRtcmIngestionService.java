@@ -9,6 +9,7 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -19,29 +20,37 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-
+import us.dot.its.jpo.ode.model.OdeMessageFrameData;
+import us.dot.its.jpo.asn.j2735.r2024.RTCMcorrections.RTCMcorrectionsMessageFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
 public class NtripRtcmIngestionService {
 
     private static final Logger logger = LoggerFactory.getLogger(NtripRtcmIngestionService.class);
     private static final DateTimeFormatter GGA_TIME_FORMATTER = DateTimeFormatter.ofPattern("HHmmss");
+    public static final ObjectMapper mapper = DateJsonMapper.getInstance();
 
     private final NtripProperties ntripProperties;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ExecutorService worker;
     private final AtomicBoolean running;
+    private final RtcmBuilder rtcmBuilder;
 
-    public NtripRtcmIngestionService(NtripProperties ntripProperties, KafkaTemplate<String, String> kafkaTemplate) {
+    private int messageCount;
+
+    public NtripRtcmIngestionService(NtripProperties ntripProperties, KafkaTemplate<String, String> kafkaTemplate,
+            RtcmBuilder rtcmBuilder) {
         this.ntripProperties = ntripProperties;
         this.kafkaTemplate = kafkaTemplate;
+        this.rtcmBuilder = rtcmBuilder;
 
         logger.info("Initializing NtripRtcmIngestionService with host: {} and mountpoint: {}",
                 ntripProperties.getHost(), ntripProperties.getMountpoint());
@@ -261,7 +270,7 @@ public class NtripRtcmIngestionService {
                 int read = session.inputStream().read(buffer);
                 if (read == -1) {
                     throw new IOException(
-                            "Caster closed the stream. Possible causes include:\r\n network issues\r\ncaster shutdown\r\nincorrect mountpoint configuration\r\ninvalid credentials\r\nno gga stream provided\r\ngga stream is in an invalid location");
+                            "Caster closed the stream. Possible causes include: network issues, caster shutdown, incorrect mountpoint configuration, invalid credentials, no gga stream provided, gga stream is in an invalid location");
                 }
 
                 byte[] merged = new byte[pending.length + read];
@@ -284,49 +293,22 @@ public class NtripRtcmIngestionService {
 
     private void publishFrame(RtcmFrameParser.RtcmFrame frame) {
         String payloadHex = HexFormat.of().withUpperCase().formatHex(frame.frameBytes());
-        RtcmBuilder.buildAsn1DataFromPayload(ntripProperties.getHost(), ntripProperties.getPort(),
-                ntripProperties.getMountpoint(), payloadHex, ntripProperties.latitude, ntripProperties.getLongitude(),
-                ntripProperties.getElevation());
-        String message = toJson(frame, payloadHex);
-        String key = frame.messageType() >= 0 ? Integer.toString(frame.messageType()) : "unknown";
-        kafkaTemplate.send(ntripProperties.getOutputTopic(), key, message);
-    }
+        RTCMcorrectionsMessageFrame rtcmMessageFrame = rtcmBuilder.buildRtcmCorrectionsMessageFrame(payloadHex,
+                messageCount, ZonedDateTime.now(ZoneOffset.UTC));
+        String messageHex = rtcmBuilder.convertFrameToUperHex(rtcmMessageFrame);
+        // OdeData<OdeMessageFrameMetadata, OdeMessageFramePayload> message =
+        // rtcmBuilder.buildOdeAsn1Data(ntripProperties, messageHex, rtcmMessageFrame);
+        // String asn1Hex = rtcmBuilder.wrapRtcmInAsn1(payloadHex, messageCount, ZonedDateTime.now(ZoneOffset.UTC));
 
-    private String toJson(RtcmFrameParser.RtcmFrame frame, String payloadHex) {
-        StringBuilder sb = new StringBuilder(256);
-        sb.append('{');
-        appendJsonField(sb, "timestamp", Instant.now().toString(), true);
-        appendJsonField(sb, "casterHost", ntripProperties.getHost(), true);
-        appendJsonNumber(sb, "casterPort", ntripProperties.getPort(), true);
-        appendJsonField(sb, "mountpoint", ntripProperties.getMountpoint(), true);
-        appendJsonNumber(sb, "messageType", frame.messageType(), true);
-        appendJsonField(sb, "payloadHex", payloadHex, true);
-        appendJsonNumber(sb, "payloadLengthBytes", frame.payloadLength(), false);
-        sb.append('}');
-
-        System.out.println("Generated JSON message: " + sb.toString());
-        return sb.toString();
-    }
-
-    private void appendJsonField(StringBuilder sb, String key, String value, boolean trailingComma) {
-        sb.append('"').append(escapeJson(key)).append('"').append(':').append('"').append(escapeJson(value))
-                .append('"');
-        if (trailingComma) {
-            sb.append(',');
+        OdeMessageFrameData message = rtcmBuilder.buildOdeAsn1Data(ntripProperties, messageHex, rtcmMessageFrame);
+        messageCount = (messageCount + 1) % 128;
+        try {
+            String odeRtcmJson = DateJsonMapper.getInstance().writeValueAsString(message);
+            String key = frame.messageType() >= 0 ? Integer.toString(frame.messageType()) : "unknown";
+            kafkaTemplate.send(ntripProperties.getOutputTopic(), key, odeRtcmJson);
+        } catch (JsonProcessingException e) {
+            logger.warn("Unable to Serialize OdeRTCM to JSON format.", e);
         }
-    }
-
-    private void appendJsonNumber(StringBuilder sb, String key, int value, boolean trailingComma) {
-        sb.append('"').append(escapeJson(key)).append('"').append(':').append(value);
-        if (trailingComma) {
-            sb.append(',');
-        }
-    }
-
-    private String escapeJson(String value) {
-        String input = value == null ? "" : value;
-        return input.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t",
-                "\\t");
     }
 
     private String makeGga(double lat, double lon, double altMeters) {

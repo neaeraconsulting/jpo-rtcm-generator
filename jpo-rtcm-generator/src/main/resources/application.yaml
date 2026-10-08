@@ -21,6 +21,15 @@ logging:
     us.dot.its.jpo.ode.mec.deposit: ${LOGGING_LEVEL:INFO}
     org.apache.kafka: WARN
 
+j2735.codec:
+  # Use a large default value for text encoding, because the XML encodings for RTCM can be quite large
+  text-buffer-size: 262144
+  # UPER binary is a more compact encoding, so we can use a smaller buffer size.
+  uper-buffer-size: 8192
+  error-buffer-size: 256
+  library-path: /home/libasnapplication.so
+  windows-library-path: C:/temp/asnapplication.dll
+
 # Amount of time to wait to try and increase batching
 kafka.linger_ms: 50
 
@@ -46,6 +55,6 @@ ntrip:
   fake-lat: ${NTRIP_FAKE_LAT:38.9542}
   fake-lon: ${NTRIP_FAKE_LON:-77.1492}
   fake-alt-m: ${NTRIP_FAKE_ALT_M:30.0}
-  output-topic: ${NTRIP_OUTPUT_TOPIC:topic.RGRtcmJson}
+  ode-json-output-topic: ${NTRIP_ODE_JSON_OUTPUT_TOPIC:topic.RGRtcmJson}
   user-agent: ${NTRIP_USER_AGENT:NTRIP-RTCM-Generator/1.0}
   prefer-ntrip-v2: ${NTRIP_PREFER_NTRIP_V2:true}
