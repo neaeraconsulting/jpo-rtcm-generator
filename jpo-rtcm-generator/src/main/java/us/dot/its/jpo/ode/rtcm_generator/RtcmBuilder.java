@@ -86,7 +86,6 @@ public final class RtcmBuilder {
 
         try {
             String xer = xmlUtils.getXmlMapper().writeValueAsString(frame);
-            System.out.println(xer);
             byte[] bytes = codec.xerToUper(xer);
             return HexFormat.of().formatHex(bytes);
         } catch (JsonProcessingException e) {
@@ -122,43 +121,5 @@ public final class RtcmBuilder {
         messageList.add(new RTCMmessage(ntripHexPayload));
         return messageList;
     }
-
-    // public FullPositionVector getAnchorPoint(ZonedDateTime timestamp, NtripProperties ntripProperties) {
-    // FullPositionVector anchorPoint = new FullPositionVector();
-    // anchorPoint.setUtcTime(getAsJ2735DDateTime(timestamp));
-    // anchorPoint.setLat(getAsJ2735Latitude(ntripProperties.getLatitude()));
-    // anchorPoint.setLong_(getAsJ2735Longitude(ntripProperties.getLongitude()));
-    // anchorPoint.setElevation(getAsJ2735Elevation(ntripProperties.getElevation()));
-    // anchorPoint.setHeading(new Heading(0));
-    // anchorPoint.setSpeed(new TransmissionAndSpeed());
-
-    // return anchorPoint;
-    // }
-
-    // public DDateTime getAsJ2735DDateTime(ZonedDateTime timestamp) {
-    // DDateTime dDateTime = new DDateTime();
-    // dDateTime.setYear(new DYear(timestamp.getYear()));
-    // dDateTime.setMonth(new DMonth(timestamp.getMonthValue()));
-    // dDateTime.setDay(new DDay(timestamp.getDayOfMonth()));
-    // dDateTime.setHour(new DHour(timestamp.getHour()));
-    // dDateTime.setMinute(new DMinute(timestamp.getMinute()));
-    // dDateTime.setSecond(new DSecond(timestamp.getSecond()));
-    // return dDateTime;
-    // }
-
-    // public Latitude getAsJ2735Latitude(double latitute) {
-    // long j2735Latitude = Math.round(latitute * 10E7);
-    // return new Latitude(j2735Latitude);
-    // }
-
-    // public Longitude getAsJ2735Longitude(double longitude) {
-    // long j2735Longitude = Math.round(longitude * 10E7);
-    // return new Longitude(j2735Longitude);
-    // }
-
-    // public Elevation getAsJ2735Elevation(double elevation) {
-    // long j2735Elevation = Math.round(elevation * 10E2);
-    // return new Elevation(j2735Elevation);
-    // }
 }
 

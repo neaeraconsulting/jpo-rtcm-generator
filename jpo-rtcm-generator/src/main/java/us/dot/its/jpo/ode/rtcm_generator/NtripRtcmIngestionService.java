@@ -252,8 +252,6 @@ public class NtripRtcmIngestionService {
         String ggaSentence =
                 makeGga(ntripProperties.getLatitude(), ntripProperties.getLongitude(), ntripProperties.getElevation());
 
-        System.out.println("Sending GGA sentence: " + ggaSentence);
-
         outputStream.write(ggaSentence.getBytes(StandardCharsets.US_ASCII));
         outputStream.flush();
     }
@@ -293,13 +291,11 @@ public class NtripRtcmIngestionService {
 
     private void publishFrame(RtcmFrameParser.RtcmFrame frame) {
         String payloadHex = HexFormat.of().withUpperCase().formatHex(frame.frameBytes());
+
+        logger.info("Publishing RTCM frame with payload: {}", payloadHex);
         RTCMcorrectionsMessageFrame rtcmMessageFrame = rtcmBuilder.buildRtcmCorrectionsMessageFrame(payloadHex,
                 messageCount, ZonedDateTime.now(ZoneOffset.UTC));
         String messageHex = rtcmBuilder.convertFrameToUperHex(rtcmMessageFrame);
-        // OdeData<OdeMessageFrameMetadata, OdeMessageFramePayload> message =
-        // rtcmBuilder.buildOdeAsn1Data(ntripProperties, messageHex, rtcmMessageFrame);
-        // String asn1Hex = rtcmBuilder.wrapRtcmInAsn1(payloadHex, messageCount, ZonedDateTime.now(ZoneOffset.UTC));
-
         OdeMessageFrameData message = rtcmBuilder.buildOdeAsn1Data(ntripProperties, messageHex, rtcmMessageFrame);
         messageCount = (messageCount + 1) % 128;
         try {
