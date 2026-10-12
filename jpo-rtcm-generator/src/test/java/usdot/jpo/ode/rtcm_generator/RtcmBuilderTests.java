@@ -112,7 +112,13 @@ class RtcmBuilderTests {
     void buildRtcmCorrectionsMessageFramePopulatesFields() {
         ZonedDateTime timestamp = ZonedDateTime.of(2026, 1, 1, 0, 1, 0, 0, ZoneOffset.UTC);
 
-        RTCMcorrectionsMessageFrame frame = builder.buildRtcmCorrectionsMessageFrame("A1B2C3", 3, timestamp);
+        NtripProperties properties = new NtripProperties();
+        properties.setHost("caster.example.org");
+        properties.setLatitude(42.34);
+        properties.setLongitude(-83.05);
+        properties.setElevation(75.0);
+
+        RTCMcorrectionsMessageFrame frame = builder.buildRtcmCorrectionsMessageFrame("A1B2C3", 3, timestamp, properties);
 
         assertNotNull(frame);
         assertNotNull(frame.getValue());

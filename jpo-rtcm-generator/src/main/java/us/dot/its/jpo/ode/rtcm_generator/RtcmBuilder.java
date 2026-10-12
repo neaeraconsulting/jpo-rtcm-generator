@@ -7,6 +7,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import us.dot.its.jpo.asn.j2735.r2024.Common.DDateTime;
+import us.dot.its.jpo.asn.j2735.r2024.Common.DDay;
+import us.dot.its.jpo.asn.j2735.r2024.Common.DHour;
+import us.dot.its.jpo.asn.j2735.r2024.Common.DMinute;
+import us.dot.its.jpo.asn.j2735.r2024.Common.DMonth;
+import us.dot.its.jpo.asn.j2735.r2024.Common.DSecond;
+import us.dot.its.jpo.asn.j2735.r2024.Common.DYear;
+import us.dot.its.jpo.asn.j2735.r2024.Common.Elevation;
+import us.dot.its.jpo.asn.j2735.r2024.Common.FullPositionVector;
+import us.dot.its.jpo.asn.j2735.r2024.Common.Latitude;
+import us.dot.its.jpo.asn.j2735.r2024.Common.Longitude;
 import us.dot.its.jpo.asn.j2735.r2024.Common.MinuteOfTheYear;
 import us.dot.its.jpo.asn.j2735.r2024.Common.MsgCount;
 import us.dot.its.jpo.asn.j2735.r2024.Common.RTCMmessage;
@@ -52,14 +63,15 @@ public final class RtcmBuilder {
         OdeMessageFramePayload payload = new OdeMessageFramePayload(frame);
 
 
+
         OdeMessageFrameMetadata metadata = new OdeMessageFrameMetadata(); // payload
 
         // Add header data for the decoding process
         metadata.setOdeReceivedAt(DateTimeUtils.now());
         metadata.setOriginIp(ntripProperties.getHost());
-        metadata.setSource(OdeMessageFrameMetadata.Source.NA);
+        metadata.setSource(OdeMessageFrameMetadata.Source.UNKNOWN);
         metadata.setRecordType(RecordType.rtcmTx);
-        metadata.setRecordGeneratedBy(OdeMsgMetadata.GeneratedBy.TMC);
+        metadata.setRecordGeneratedBy(OdeMsgMetadata.GeneratedBy.UNKNOWN);
         metadata.setSecurityResultCode(SecurityResultCode.success);
         metadata.setLogFileName("");
         metadata.setRecordGeneratedAt("");
@@ -95,12 +107,12 @@ public final class RtcmBuilder {
     }
 
     public RTCMcorrectionsMessageFrame buildRtcmCorrectionsMessageFrame(String ntripHexPayload, int messageCount,
-            ZonedDateTime timestamp) {
+            ZonedDateTime timestamp, NtripProperties ntripProperties) {
         RTCMcorrections rtcmCorrections = new RTCMcorrections();
         rtcmCorrections.setMsgCnt(new MsgCount(messageCount));
         rtcmCorrections.setRev(RTCM_Revision.RTCMREV3);
-        rtcmCorrections.setTimeStamp(getCurrentMinuteOfTheYear(timestamp));
         rtcmCorrections.setMsgs(getRtcmMessageList(ntripHexPayload));
+        rtcmCorrections.setAnchorPoint(getAnchorPoint(ntripProperties, timestamp));
 
 
         RTCMcorrectionsMessageFrame frame = new RTCMcorrectionsMessageFrame();
@@ -120,6 +132,58 @@ public final class RtcmBuilder {
         RTCMmessageList messageList = new RTCMmessageList();
         messageList.add(new RTCMmessage(ntripHexPayload));
         return messageList;
+    }
+
+    public FullPositionVector getAnchorPoint(NtripProperties properties, ZonedDateTime time) {
+        FullPositionVector anchorPoint = new FullPositionVector();
+        anchorPoint.setLat(getAsJ2735Latitude(properties.getLatitude()));
+        anchorPoint.setLong_(getAsJ2735Longitude(properties.getLongitude()));
+        anchorPoint.setElevation(getAsJ2735Elevation(properties.getElevation()));
+        anchorPoint.setUtcTime(getTimeAsDDateTime(time));
+        return anchorPoint;
+    }
+
+    public Longitude getAsJ2735Longitude(double longitude) {
+        if(longitude > 180.0){
+            log.warn("Longitude value {} exceeds maximum of 180.0, setting to 180.0", longitude);
+            longitude = 180.0;
+        }else if(longitude < -180.0){
+            log.warn("Longitude value {} is below minimum of -180.0, setting to -180.0", longitude);
+            longitude = -180.0;
+        }
+        return new Longitude((int)(longitude * 1E7));
+    }
+    
+    public Latitude getAsJ2735Latitude(double latitude) {
+        if(latitude > 90.0){
+            log.warn("Latitude value {} exceeds maximum of 90.0, setting to 90.0", latitude);
+            latitude = 90.0;
+        }else if(latitude < -90.0){
+            log.warn("Latitude value {} is below minimum of -90.0, setting to -90.0", latitude);
+            latitude = -90.0;
+        }
+        return new Latitude((int)(latitude * 1E7));
+    }
+
+    public Elevation getAsJ2735Elevation(double elevation) {
+        if(elevation > 6143.9){
+            return new Elevation(61439);
+        }else if(elevation < -409.5){
+            return new Elevation(-4095);
+        }else{
+            return new Elevation((int)(elevation*10));
+        }
+    }
+
+    public DDateTime getTimeAsDDateTime(ZonedDateTime time) {
+        DDateTime dDateTime = new DDateTime();
+        dDateTime.setYear(new DYear(time.getYear()));
+        dDateTime.setMonth(new DMonth(time.getMonthValue()));
+        dDateTime.setDay(new DDay(time.getDayOfMonth()));
+        dDateTime.setHour(new DHour(time.getHour()));
+        dDateTime.setMinute(new DMinute(time.getMinute()));
+        dDateTime.setSecond(new DSecond(time.getSecond() * 1000 + time.getNano()/1000000));
+        return dDateTime;
     }
 }
 

@@ -294,14 +294,14 @@ public class NtripRtcmIngestionService {
 
         logger.info("Publishing RTCM frame with payload: {}", payloadHex);
         RTCMcorrectionsMessageFrame rtcmMessageFrame = rtcmBuilder.buildRtcmCorrectionsMessageFrame(payloadHex,
-                messageCount, ZonedDateTime.now(ZoneOffset.UTC));
+                messageCount, ZonedDateTime.now(ZoneOffset.UTC), ntripProperties);
         String messageHex = rtcmBuilder.convertFrameToUperHex(rtcmMessageFrame);
         OdeMessageFrameData message = rtcmBuilder.buildOdeAsn1Data(ntripProperties, messageHex, rtcmMessageFrame);
         messageCount = (messageCount + 1) % 128;
         try {
             String odeRtcmJson = DateJsonMapper.getInstance().writeValueAsString(message);
-            String key = frame.messageType() >= 0 ? Integer.toString(frame.messageType()) : "unknown";
-            kafkaTemplate.send(ntripProperties.getOutputTopic(), key, odeRtcmJson);
+            // String key = frame.messageType() >= 0 ? Integer.toString(frame.messageType()) : "unknown";
+            kafkaTemplate.send(ntripProperties.getOutputTopic(), null, odeRtcmJson);
         } catch (JsonProcessingException e) {
             logger.warn("Unable to Serialize OdeRTCM to JSON format.", e);
         }
